@@ -52,8 +52,8 @@ def rogan_gladen(observed_rate: float, sensitivity: float, specificity: float) -
     """Correct an observed failure rate for judge error; clip to [0, 1]."""
     if any(not isfinite(v) or not 0 <= v <= 1 for v in (observed_rate, sensitivity, specificity)):
         raise ValueError("rates must be finite and in [0, 1]")
-    if sensitivity + specificity <= 1:
-        raise ValueError("Rogan-Gladen requires sensitivity + specificity > 1")
+    if sensitivity + specificity == 1:
+        raise ValueError("Rogan-Gladen undefined: sensitivity + specificity == 1")
     return min(1.0, max(0.0, (observed_rate + specificity - 1) / (sensitivity + specificity - 1)))
 
 

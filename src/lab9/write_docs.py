@@ -15,7 +15,8 @@ def read(name):
 
 
 def write(name, text):
-    (DOCS / name).write_text(text.strip() + "\n", encoding="utf-8")
+    clean = "\n".join(line.rstrip() for line in text.strip().splitlines()) + "\n"
+    (DOCS / name).write_text(clean, encoding="utf-8")
 
 
 def metric_table(spec, baseline):
@@ -286,7 +287,7 @@ Bổ sung source gốc Day 8, giữ nguyên lab8/, variants và traps; hoàn thi
     for name in ("mutation", "aa", "trap_evaluator_errors_as_nan", "trap_dropped_failing_rows", "trap_cherry_picked_seeds", "trap_loosened_spec"):
         pr += "\n## " + name + "\n\n```text\n" + (REPORTS / f"{name}.txt").read_text(encoding="utf-8").strip() + "\n```\n"
     pr += "\nChưa có kết quả hidden/key anchor. Chưa có xác nhận Product/waiver. Chỉ merge sau khi Actions eval-gate và eval-gate-v2 xanh; local logs không thay thế trạng thái server.\n"
-    (ROOT / "PR_DESCRIPTION.md").write_text(pr, encoding="utf-8")
+    (ROOT / "PR_DESCRIPTION.md").write_text("\n".join(line.rstrip() for line in pr.splitlines()) + "\n", encoding="utf-8")
     write("submission_status.md", f"""# Trạng thái bàn giao
 
 - Source gốc Day 8 đã tích hợp; không sửa lab8/, public variants hay traps.

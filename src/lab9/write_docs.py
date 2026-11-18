@@ -19,9 +19,9 @@ def write(name, text):
 
 
 def metric_table(spec, baseline):
-    lines = ["| Metric | Ngưỡng | Blocking | Baseline |", "|---|---|---|---:|"]
+    lines = ["| Metric | Loại / mức | Ngưỡng | Blocking | Baseline |", "|---|---|---|---|---:|"]
     for m in spec["metrics"]:
-        lines.append(f"| {m['id']} | `{json.dumps(m.get('threshold', {}))}` | {m.get('blocking', False)} | {baseline['metrics'][m['id']]} |")
+        lines.append(f"| {m['id']} | {m['kind']} / {m['level']} | `{json.dumps(m.get('threshold', {}))}` | {m.get('blocking', False)} | {baseline['metrics'][m['id']]} |")
     return "\n".join(lines)
 
 

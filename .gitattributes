@@ -1,0 +1,5 @@
+# Eval-set hashes use raw bytes; keep datasets identical on Windows and Linux.
+src/data/eval/*.jsonl text eol=lf
+src/data/eval/labels_*.json text eol=lf
+# Preserve the original Day 8 Python source line endings on checkout.
+src/lab8/** text eol=lf

@@ -1,0 +1,5 @@
+gate: PR E-slice_regression-20261118-d8f8 vs main E-swarm-20261118-d8f8 · eval set d8f826fe151e
+  INTEGRITY PR: invalid/missing row value refund_amount_correct
+  INTEGRITY PR: invalid/missing row value pass_rate
+  INTEGRITY PR: invalid/missing row value proposal_amount_correct
+exit 1 — blocked: integrity

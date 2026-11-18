@@ -1,0 +1,12 @@
+gate: PR E-slice_regression-20261118-d8f8 vs main E-swarm-20261118-d8f8 · eval set d8f826fe151e
+  INTEGRITY PR: seeds differ from spec
+  INTEGRITY PR: nonfinite/missing metric pass_at_3
+  INTEGRITY PR: nonfinite/missing metric pass_hat_3
+  INTEGRITY PR: nonfinite/missing metric pass_at_5
+  INTEGRITY PR: nonfinite/missing metric pass_hat_5
+  INTEGRITY PR: invalid reliability metric pass_at_3
+  INTEGRITY PR: invalid reliability metric pass_hat_3
+  INTEGRITY PR: invalid reliability metric pass_at_5
+  INTEGRITY PR: invalid reliability metric pass_hat_5
+  INTEGRITY PR item/seed set differs from baseline
+exit 1 — blocked: integrity

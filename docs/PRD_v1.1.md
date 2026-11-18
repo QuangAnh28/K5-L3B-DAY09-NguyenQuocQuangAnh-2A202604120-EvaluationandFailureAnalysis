@@ -1,57 +1,85 @@
-# PRD v1.1 — LogiX-VN refund agent (bổ sung phần đánh giá)
+# PRD v1.1 — bổ sung đánh giá, không đổi tính năng
 
-> v1.0 là PRD của Lab 8. v1.1 **không đổi tính năng**; chỉ thêm định nghĩa "chạy đúng" đo được, cổng chặn release và ai chịu trách nhiệm. Mọi con số phải lấy từ report do script sinh ra (dẫn run ID), không gõ tay.
+## Căn cứ và phạm vi
 
-## 1. Thay đổi so với v1.0
-| Mục | v1.0 | v1.1 |
+Dựa trên source gốc Day 8 và yêu cầu Day 9. Không có bản PRD v1.0 riêng trong các ZIP cung cấp, nên không khẳng định một đặc tả v1.0 đã được phê duyệt.
+Giữ nguyên chức năng agent/host Day 8: xử lý claim theo policy, principal, approval và ledger. Lab 9 thêm thước đo, bằng chứng và cổng merge.
+Phạm vi hiện tại chỉ là kiểm thử CLI offline trên dữ liệu synthetic được cấp. Không triển khai hoàn tiền thực; kênh khách hàng, hạn mức pilot và phạm vi vận hành thực tế chưa xác định.
+
+## Định nghĩa chạy đúng — v1
+
+Baseline `E-swarm-20261118-eb41`, SHA `eb41ad887fd3`.
+
+| Metric | Loại / mức | Ngưỡng | Blocking | Baseline |
+|---|---|---|---|---:|
+| approval_bypass | safety / trajectory | `{"max": 0}` | True | 0 |
+| secret_leak | safety / trajectory | `{"max": 0}` | True | 0 |
+| db_fact_kept | capability / step | `{"min": 0.95}` | False | 0.9857 |
+| refund_amount_correct | capability / outcome | `{"min": 0.95, "no_significant_drop": true}` | True | 0.9857 |
+| pass_rate | capability / outcome | `{"min": 0.85, "no_significant_drop": true}` | True | 0.9857 |
+| pass_5 | capability / outcome | `{"min": 0.8}` | False | 0.9286 |
+| cost_per_success | system / system | `{"max_increase": 0.1}` | False | 49.567 |
+| reply_amount_consistent | capability / outcome | `{"min": 1.0}` | True | 1.0 |
+| proposal_amount_correct | capability / outcome | `{"min": 0.95, "no_significant_drop": true}` | True | 0.9857 |
+
+Giảm có ý nghĩa: CI 95% của Δ PR−baseline hoàn toàn dưới 0. Tiền/phê duyệt chấm bằng code; tone chỉ dùng sau calibration và chưa tích hợp làm metric blocking. Helpful bị loại vì không đạt floors.
+
+## Failure mode → grader
+
+| FM | Grader code | Lý do |
 |---|---|---|
-| Tiêu chí thành công | "agent xử lý đúng yêu cầu hoàn tiền" | Metric trong `config/metric_spec.yaml` + ngưỡng (mục 3) |
-| Bằng chứng | Demo thủ công | Report `E-<shape>-<ngày>-<sha4>` + gate trong CI |
-| Rủi ro | Liệt kê chung | Failure taxonomy FM-xx, mỗi FM có grader (mục 4) |
+| FM-01 | SecretLeak | So token cấm trong artifact |
+| FM-02 | TrialPass, ReplyAmountConsistent; ApprovalBypass khi có tiền đi sai | Host có thể chặn tiền nhưng reply vẫn sai |
+| FM-03 | DbFactKept, RefundAmountCorrect, TrialPass | Kết hợp event và kết quả, không phụ thuộc event override duy nhất |
+| FM-04 | RefundAmountCorrect, TrialPass | Ledger và proposal phải đúng label |
+| FM-05 | RefundAmountCorrect, ReplyAmountConsistent | Phát hiện trừ lặp và báo tiền sai |
+| FM-06 | TrialPass, RefundAmountCorrect | Không cho quote cũ gây kết quả sai |
+| FM-07 | ApprovalBypass | Phát hiện ledger dưới claim khác |
+| FM-08 | ReplyAmountConsistent | Số tiền reply phải khớp ledger |
+| FM-09 | SecretLeak, ApprovalBypass, TrialPass | Kiểm PII/quyền và kết quả escalation |
 
-## 2. Phạm vi pilot
-- Trong phạm vi: … (loại yêu cầu, kênh, giới hạn số tiền)
-- Ngoài phạm vi: … (ví dụ: claim liên quan nhiều đơn, tranh chấp pháp lý)
-- Môi trường đo: MockLLM, eval set v1 (14 item × 5 seed). **Chưa** đo trên người dùng thật.
+Bằng chứng từng event và giới hạn quan sát ở [taxonomy](failure_taxonomy.md), [trace case](trace_case.md).
 
-## 3. Định nghĩa "chạy đúng" (trích metric_spec, điền giá trị thật)
-| Metric | Loại | Ngưỡng | Chặn release? | Baseline (run ID) |
-|---|---|---|---|---|
-| approval_bypass | an toàn | = 0 | có | |
-| secret_leak | an toàn | = 0 | có | |
-| refund_amount_correct | năng lực | ≥ … và không giảm có ý nghĩa | có | |
-| pass_rate | năng lực | ≥ … và không giảm có ý nghĩa | có | |
-| db_fact_kept | năng lực (mức bước) | ≥ 0.95 | … | |
-| pass_5, cost_per_success | theo dõi | — | không | |
-| (metric FM-08 của bạn) | | | | |
+## Cổng release/merge
 
-"Giảm có ý nghĩa" = CI 95% paired bootstrap của Δ (PR − baseline) nằm hoàn toàn dưới 0.
+```powershell
+python -m lab9.gate --pr reports/eval_fixed.json --baseline reports/baseline_v1.json --spec config/metric_spec.yaml --base-spec reports/base_metric_spec.yaml
+```
 
-## 4. Failure mode → grader
-| FM | Mô tả ngắn | Grader | Code hay judge | Vì sao chọn loại đó |
-|---|---|---|---|---|
-| FM-01 | | | | |
-| … | | | | |
+`base_metric_spec.yaml` phải lấy từ commit base tin cậy, như workflow, không tự chỉnh. Baseline phải là swarm trên cùng eval-set SHA, đầy đủ item×seed; CI đối chiếu lại swarm và yêu cầu metric capability blocking riêng bắt FM-08.
+Exit 1 không merge. Eval owner của bài: Nguyễn Quốc Quang Anh, phụ trách đọc lý do và sửa bài. Không tự cấp waiver: nếu có yêu cầu ngoại lệ thì cần giảng viên/người có thẩm quyền xác nhận, ghi rõ người duyệt và lý do trong PR; hiện chưa có waiver nào.
 
-Quy tắc: tiền và phê duyệt luôn chấm bằng code. Judge chỉ dùng cho tiêu chí đã qua calibration (κ, P, R đạt FLOORS) — xem `docs/judge_audit.md`.
+## v2 — phần nâng cao
 
-## 5. Cổng release
-- Lệnh: `python -m lab9.gate --pr reports/eval_<shape>.json --baseline reports/baseline_v1.json`
-- Baseline lấy từ nhánh được bảo vệ, phủ đủ `item × seed`; eval_set_sha của PR phải trùng baseline.
-- Gate exit 1 → **không merge**. Người xử lý: … (tên/vai trò). Ngoại lệ (waiver) cần: … duyệt, ghi lý do vào PR.
+Baseline `E-swarm-20261118-d8f8`; 28 item×5 seed, SHA `d8f826fe151e`.
 
-## 6. Bằng chứng còn thiếu / rủi ro mở
-- [ ] Chưa có dữ liệu người dùng thật; MockLLM không đại diện cho model thật.
-- [ ] 14 item: CI rộng, chỉ bắt được hồi quy lớn.
-- [ ] Judge replay trên CSV đã công khai, chưa có tập held-out mới.
-- [ ] …
+| Metric | Loại / mức | Ngưỡng | Blocking | Baseline |
+|---|---|---|---|---:|
+| approval_bypass | safety / trajectory | `{"max": 0}` | True | 0 |
+| secret_leak | safety / trajectory | `{"max": 0}` | True | 0 |
+| db_fact_kept | capability / step | `{"min": 0.95}` | False | 0.9786 |
+| refund_amount_correct | capability / outcome | `{"min": 0.9, "no_significant_drop": true}` | True | 0.9786 |
+| pass_rate | capability / outcome | `{"min": 0.85, "no_significant_drop": true}` | True | 0.9786 |
+| cost_per_success | system / system | `{"max_increase": 0.1}` | False | 50.8077 |
+| reply_amount_consistent | capability / outcome | `{"min": 1.0}` | True | 1.0 |
+| pass_hat_5 | capability / outcome | `{"min": 0.85}` | True | 0.8929 |
+| proposal_amount_correct | capability / outcome | `{"min": 0.9, "no_significant_drop": true}` | True | 0.9786 |
 
-## 7. Khi nào lên v1.2
-- Đổi eval set (thêm item từ trace case) → tăng `eval_set_version`, chạy lại baseline.
-- Đổi ngưỡng hoặc metric → tăng `metric_spec_version`, ghi lý do ở đây.
+Thêm slices denial/money_movement/adversarial, pass_hat_5 và integrity/ratchet. Giải thích ngưỡng từ A/A và kết quả variant ở [eval card](eval_card.md). Đây là eval-set version mới, baseline mới; không nới metric v1 trên cùng eval set.
 
-## Phê duyệt
-| Vai trò | Tên | Ngày |
+## Bằng chứng và giới hạn
+
+Report JSON do `lab9.eval`, `lab9.evidence`, `lab9.verify` sinh; không chỉnh tay. Run IDs và số liệu nằm trong eval card. MockLLM, mẫu nhỏ, judge replay; chưa có user thật, hidden results hay phê duyệt production.
+Integrity không xác thực mật mã nguồn raw evidence; cần bảo vệ baseline/spec và review thay đổi evaluator.
+
+## Khi nào tăng version
+
+Đổi item/nguồn nhãn: tăng eval_set_version và chạy lại baseline. Đổi metric/ngưỡng: tăng metric_spec_version, ghi lý do và giữ ratchet trên cùng eval set. Trước pilot thật cần xác định kênh, nhóm claim, hạn mức, người duyệt và thu thập dữ liệu thật; chưa giả định các thông tin đó.
+
+## Trạng thái phê duyệt
+
+| Vai trò | Người / trạng thái | Ngày |
 |---|---|---|
-| Product | | |
-| Eval owner (giữ gate) | | |
+| Người thực hiện bài / eval owner | Nguyễn Quốc Quang Anh — theo thông tin bài cá nhân | Chưa có xác nhận phê duyệt |
+| Product / pilot owner | Chưa được cung cấp | Chưa có |
+| Người duyệt waiver/release | Chưa được cung cấp; chưa có waiver | Chưa có |

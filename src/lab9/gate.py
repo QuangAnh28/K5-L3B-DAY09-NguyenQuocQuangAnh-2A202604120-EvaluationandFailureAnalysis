@@ -16,9 +16,58 @@ from collections import Counter
 from pathlib import Path
 
 from lab8.console import utf8_stdio
-from lab9 import stats
+from lab9 import stats, evalset
 from lab9.graders import GRADERS
 from lab9.eval import SPEC, load_spec, per_item
+
+
+def _spec_problems(spec: dict, title: str) -> list[str]:
+    """Reject nonnumeric/nonfinite bounds before any ordered comparison."""
+    problems = []
+    for section in ("metrics", "slices"):
+        entries = spec.get(section, [])
+        if not isinstance(entries, list):
+            problems.append(f"{title}: {section} must be a list")
+            continue
+        seen = set()
+        for entry in entries:
+            if not isinstance(entry, dict):
+                problems.append(f"{title}: invalid {section} entry")
+                continue
+            ident = entry.get("id") if section == "metrics" else (entry.get("name"), entry.get("metric"))
+            if ident in seen:
+                problems.append(f"{title}: duplicate {section} {ident}")
+            seen.add(ident)
+            bounds = entry.get("threshold", {}) if section == "metrics" else entry
+            if not isinstance(bounds, dict):
+                problems.append(f"{title}: invalid threshold {ident}")
+                continue
+            for key in ("min", "max", "max_increase"):
+                if key in bounds and (type(bounds[key]) not in (int, float) or not math.isfinite(bounds[key])):
+                    problems.append(f"{title}: nonfinite/nonnumeric bound {ident}/{key}")
+            if "blocking" in entry and type(entry["blocking"]) is not bool:
+                problems.append(f"{title}: blocking must be boolean: {ident}")
+            if "no_significant_drop" in bounds and type(bounds["no_significant_drop"]) is not bool:
+                problems.append(f"{title}: no_significant_drop must be boolean: {ident}")
+    return problems
+
+
+def _same_eval_set(spec: dict, base_spec: dict, report: dict) -> bool:
+    """Version text alone cannot unlock ratchet for unchanged dataset bytes.
+
+    A genuine migration is allowed when the old spec identifies different data,
+    the new dataset's own item versions match the new spec, and its baseline
+    has been regenerated. Minimal in-memory reports without a dataset reference
+    cannot prove a migration and therefore keep the ratchet.
+    """
+    if spec.get("eval_set_version") == base_spec.get("eval_set_version"):
+        return True
+    old_path, new_path = base_spec.get("eval_set"), spec.get("eval_set")
+    if not old_path or old_path == new_path:
+        return True
+    if Path(old_path).is_file():
+        return evalset.sha12(Path(old_path)) == report.get("manifest", {}).get("eval_set_sha")
+    return True  # no evidence that this is a different dataset
 
 
 def integrity_check(pr: dict, base: dict, spec: dict, base_spec: dict | None = None) -> list[str]:
@@ -36,12 +85,34 @@ def integrity_check(pr: dict, base: dict, spec: dict, base_spec: dict | None = N
         including dropping no_significant_drop)
       - an item's slice tags in PR rows differ from the baseline's (relabelling an item out of a
         slice hides its regression from the slice gate)"""
-    problems = []
+    problems = _spec_problems(spec, "spec")
+    if base_spec is not None:
+        problems += _spec_problems(base_spec, "base_spec")
+    if problems:
+        return problems
+    # Bind the declared version and SHA to the actual immutable evaluation items.
+    if spec.get("eval_set"):
+        path = Path(spec["eval_set"])
+        try:
+            items = evalset.load_jsonl(path)
+            versions = {it.get("eval_set_version") for it in items}
+            if not items or versions != {spec.get("eval_set_version")}:
+                problems.append("spec eval_set_version differs from dataset item versions")
+            sha = evalset.sha12(path)
+            for title, report in (("PR", pr), ("baseline", base)):
+                if report.get("manifest", {}).get("eval_set_sha") != sha:
+                    problems.append(f"{title}: SHA differs from spec dataset bytes")
+                if report.get("manifest", {}).get("items") != len(items):
+                    problems.append(f"{title}: item count differs from dataset")
+        except (OSError, ValueError, TypeError, AttributeError) as exc:
+            problems.append(f"cannot validate spec dataset: {type(exc).__name__}")
     graded = [m["id"] for m in spec["metrics"] if m["id"] in GRADERS]
     for title, report in (("PR", pr), ("baseline", base)):
         rows = report.get("rows", [])
         manifest = report.get("manifest", {})
         seeds = manifest.get("seeds", [])
+        if "eval_set_version" in manifest and manifest["eval_set_version"] != spec.get("eval_set_version"):
+            problems.append(f"{title}: manifest eval-set version differs from spec")
         pairs = [(r.get("item_id"), r.get("seed")) for r in rows]
         if not seeds or len(set(seeds)) != len(seeds):
             problems.append(f"{title}: empty or duplicate manifest seeds")
@@ -114,7 +185,7 @@ def integrity_check(pr: dict, base: dict, spec: dict, base_spec: dict | None = N
             if r["item_id"] in tags and tags[r["item_id"]] != tag:
                 problems.append(f"{title}: inconsistent slice tags across seeds")
             tags[r["item_id"]] = tag
-    if base_spec and spec.get("eval_set_version") == base_spec.get("eval_set_version"):
+    if base_spec is not None and _same_eval_set(spec, base_spec, pr):
         for section in ("metrics", "slices"):
             key = (lambda m: m["id"]) if section == "metrics" else (lambda m: (m["name"], m["metric"]))
             current = {key(m): m for m in spec.get(section, [])}

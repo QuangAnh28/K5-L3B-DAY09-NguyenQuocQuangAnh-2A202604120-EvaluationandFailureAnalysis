@@ -60,6 +60,7 @@ def main():
                 trap_spec = f"reports/traps/{name}.spec.yaml" if name == "loosened_spec" else spec
                 run(f"trap_{name}", ["lab9.gate", "--pr", f"reports/traps/{name}.json", "--baseline", baseline,
                                      "--spec", trap_spec, "--base-spec", spec], 1)
+    run("review_regressions", ["lab9.review_checks"])
     run("tests_lab9", ["pytest", "-q", "-m", "student", "-o", "addopts=", "-k", "lab9"])
     run("evidence", ["lab9.evidence"])
     print(f"All {len(records)} acceptance commands returned expected exits.")

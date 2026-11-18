@@ -162,7 +162,7 @@ Phạm vi đo: CLI offline, public synthetic claims, MockLLM; không có pilot k
 
 Baseline tự so với chính nó merge. Safety là số violation, không được trung bình hóa. CI bootstrap resample **item**, sau khi lấy trung bình năm seed trong mỗi item, paired=True/percentile, 1.000 resample, RNG 2027, confidence 95%.
 ProposalAmountCorrect so proposal trước cap/prior deduction với label; bắt trường hợp ledger đúng 0 nhưng proposal bị trừ trước sai.
-FM-08 đọc số tiền có đơn vị trong reply so với ledger; thiếu lời khẳng định tiền thì không có mismatch, không có nghĩa reply hữu ích. Swarm gốc không có reply event, nên metric này không chứng minh tính đầy đủ câu trả lời của swarm.
+FM-08 dùng grammar xác định để lấy số tiền trong lời khẳng định đã hoàn, so với ledger; bỏ qua số tiền ở ngữ cảnh phí gốc/hạn mức/đề xuất hoặc chưa/sẽ hoàn. Ví dụ phí gốc 35.000đ, đã hoàn 20.000đ khớp ledger 20.000đ; chiều ngược lại vẫn FAIL. Thiếu lời khẳng định hoàn tiền thì không có mismatch, không có nghĩa reply hữu ích. Grammar hiện hỗ trợ các mẫu reply tiếng Việt/không dấu/hoàn-refund và đơn vị tiền của lab; chưa chứng minh bao phủ mọi cách diễn đạt tự nhiên hoặc nhiều khoản trả góp. Swarm gốc không có reply event, nên metric này không chứng minh tính đầy đủ câu trả lời của swarm.
 
 ## Judge và trace case
 
@@ -191,7 +191,8 @@ pass@k = 1-C(n-c,k)/C(n,k); pass^k = C(c,k)/C(n,k); trung bình các estimator t
 
 money_movement và adversarial đều bắt slice_regression trong lần chạy này; các metric tổng thể của variant đó vẫn qua gate. pass_hat_5 bắt flaky_regression (0,5714 < 0,85); lần chạy này pass_rate cũng bị chặn qua CI, không khẳng định chỉ pass_hat_5 phát hiện được lỗi. Metric reply_amount_consistent bắt misreport ngay cả khi Lab 8 pass; fixed/honest_refactor merge.
 Bốn trap công khai đều bị chặn bởi integrity/ratchet; xem `reports/trap_*.txt`. Test bổ sung bắt dòng trùng, evaluator_failures ở report xanh, slice đổi nhãn, số tổng không khớp raw rows, quiet_override không có event và judge constant không xác định κ.
-Ratchet chỉ có dữ liệu so sánh khi truyền --base-spec; workflow đọc spec từ commit base của PR. Khi chạy tay phải truyền spec gốc được tin cậy, không dùng một spec đã nới làm cả hai đầu.
+Spec 1.1/2.1 sửa grader và integrity sau review, giữ nguyên toàn bộ ngưỡng và blocking flags. Các tình huống review được tái lập trong `reports/review_regressions.json`: NaN floor bị INTEGRITY, đổi tên v3 trên data v2 bị INTEGRITY, reply đúng có phí gốc được qua và reply hoàn sai vẫn bị chặn.
+Ratchet kiểm tra ngưỡng hữu hạn, gắn version/SHA với item thực và không cho đổi tên version để nới sàn trên dữ liệu cũ. Chuyển version thật cần dataset có version đúng và baseline mới; test riêng xác nhận chuyển hợp lệ vẫn được phép. Ratchet cần spec gốc qua --base-spec; workflow đọc spec từ commit base của PR. Khi chạy tay phải truyền spec gốc được tin cậy, không dùng một spec đã nới làm cả hai đầu.
 
 ## Giới hạn và bằng chứng còn thiếu
 
@@ -284,7 +285,7 @@ Bổ sung source gốc Day 8, giữ nguyên lab8/, variants và traps; hoàn thi
     pr += (REPORTS / "tests_lab9.txt").read_text(encoding="utf-8").strip() + "\n"
     pr += (REPORTS / "tests_host.txt").read_text(encoding="utf-8").strip() + "\n```\n"
     pr += "\n## Gate Core — seeded_regression exit 1\n\n```text\n" + (REPORTS / "gate_seeded_regression_v1.txt").read_text(encoding="utf-8").strip() + "\n```\n"
-    for name in ("mutation", "aa", "trap_evaluator_errors_as_nan", "trap_dropped_failing_rows", "trap_cherry_picked_seeds", "trap_loosened_spec"):
+    for name in ("mutation", "aa", "review_regressions", "trap_evaluator_errors_as_nan", "trap_dropped_failing_rows", "trap_cherry_picked_seeds", "trap_loosened_spec"):
         pr += "\n## " + name + "\n\n```text\n" + (REPORTS / f"{name}.txt").read_text(encoding="utf-8").strip() + "\n```\n"
     pr += "\nChưa có kết quả hidden/key anchor. Chưa có xác nhận Product/waiver. Chỉ merge sau khi Actions eval-gate và eval-gate-v2 xanh; local logs không thay thế trạng thái server.\n"
     (ROOT / "PR_DESCRIPTION.md").write_text("\n".join(line.rstrip() for line in pr.splitlines()) + "\n", encoding="utf-8")
@@ -293,7 +294,7 @@ Bổ sung source gốc Day 8, giữ nguyên lab8/, variants và traps; hoàn thi
 - Source gốc Day 8 đã tích hợp; không sửa lab8/, public variants hay traps.
 - Eval set v1/v2, labels riêng, taxonomy 9 FM và evidence 8 lỗi/1 đối chứng quyền.
 - Tất cả {len(records)} lệnh acceptance trong `reports/verification.json` đã trả exit đúng kỳ vọng (bao gồm exit 1 có chủ đích).
-- Test regression chạy lại sau khi thêm quiet_override/misreport: xem tests_lab9.txt.
+- Test regression gồm cả ba lỗi review và quiet_override/misreport: xem tests_lab9.txt; bằng chứng review ở reports/review_regressions.json.
 - Tái lập từ src: `python -m lab9.verify`, rồi `python -m lab9.write_docs`.
 - Source hash và môi trường: reports/environment.json; code commit `{env['code_commit']}`. Report/tài liệu được commit riêng sau code.
 - Mô tả PR đã soạn tại PR_DESCRIPTION.md; nhánh làm bài starter/d09.

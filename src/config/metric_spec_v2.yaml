@@ -1,6 +1,7 @@
+# Grader/integrity fixes after review; all numeric floors and blocking flags unchanged.
 # Lab 9 metric spec v2 (M5-M7). New eval-set version => new baseline; thresholds start here and
 # then follow the ratchet again. v2 adds slices, pass^k, and the adversarial pack.
-metric_spec_version: "2.0"
+metric_spec_version: "2.1"
 eval_set_version: v2
 eval_set: data/eval/eval_set_v2.jsonl
 labels: data/eval/labels_v2.json

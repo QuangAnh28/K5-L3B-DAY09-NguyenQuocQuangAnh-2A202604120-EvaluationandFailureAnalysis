@@ -126,3 +126,67 @@ def test_lab9_evalset_uses_canonical_lf_bytes(tmp_path, monkeypatch):
     assert b"\r\n" not in evalset.ITEMS.read_bytes()
     assert b"\r\n" not in evalset.LABELS.read_bytes()
     assert evalset.ITEMS.read_bytes().endswith(b"\n")
+
+
+@pytest.mark.parametrize("invalid", [float("nan"), float("inf"), -float("inf"), "0.5", True, None])
+@pytest.mark.parametrize("section,bound", [("metrics", "min"), ("metrics", "max"),
+                                           ("metrics", "max_increase"), ("slices", "min")])
+def test_lab9_advanced_nonfinite_or_nonnumeric_spec_is_blocked(invalid, section, bound):
+    spec = copy.deepcopy(SPEC)
+    target = spec[section][0]["threshold"] if section == "metrics" else spec[section][0]
+    target[bound] = invalid
+    assert gate.check(report(), report(), spec, SPEC)[0] == ["integrity"]
+
+
+def test_lab9_advanced_version_alias_cannot_unlock_ratchet():
+    loose = copy.deepcopy(SPEC)
+    loose["eval_set_version"] = "v3"
+    loose["metrics"][0]["threshold"] = {"min": 0.1}
+    loose["slices"] = []
+    assert gate.check(report(), report(), loose, SPEC)[0] == ["integrity"]
+
+
+def test_lab9_advanced_version_must_match_dataset_bytes(tmp_path):
+    import json
+    from lab9.evalset import sha12
+    data = tmp_path / "v2.jsonl"
+    data.write_text("".join(json.dumps({"item_id": i, "eval_set_version": "v2"}) + "\n" for i in ("a", "b")), encoding="utf-8")
+    spec = copy.deepcopy(SPEC)
+    spec.update(eval_set=str(data), eval_set_version="v3")
+    base = report(); base["manifest"]["eval_set_sha"] = sha12(data)
+    assert gate.check(base, base, spec, SPEC)[0] == ["integrity"]
+
+
+def test_lab9_advanced_genuine_new_dataset_can_start_new_floors(tmp_path):
+    import json
+    from lab9.evalset import sha12
+    old, new = tmp_path / "v2.jsonl", tmp_path / "v3.jsonl"
+    for path, version in ((old, "v2"), (new, "v3")):
+        path.write_text("".join(json.dumps({"item_id": i, "eval_set_version": version}) + "\n" for i in ("a", "b")), encoding="utf-8")
+    old_spec = copy.deepcopy(SPEC); old_spec["eval_set"] = str(old)
+    new_spec = copy.deepcopy(SPEC)
+    new_spec.update(eval_set=str(new), eval_set_version="v3")
+    new_spec["metrics"][0]["threshold"]["min"] = 0.7
+    base = report(); base["manifest"].update(eval_set_sha=sha12(new), eval_set_version="v3")
+    assert gate.check(base, base, new_spec, old_spec)[0] == []
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("Phí ship gốc 35.000đ; LogiX đã hoàn 20.000đ.", True),
+    ("LogiX đã hoàn lại phí ship 20.000đ.", True),
+    ("LogiX đã hoàn lại phí ship 35.000đ.", False),
+    ("Đã được hoàn toàn bộ phí vận chuyển 20.000đ.", True),
+    ("Đã được hoàn toàn bộ phí vận chuyển 35.000đ.", False),
+    ("Phí ship gốc 35.000đ, LogiX đã hoàn 20.000đ.", True),
+    ("LogiX đã hoàn 20.000đ trong tổng phí 35.000đ.", True),
+    ("Phí ship 35.000đ, hạn mức 25.000đ; đã hoàn 20.000đ.", True),
+    ("Đề xuất hoàn 35.000đ; đã hoàn 20.000đ.", True),
+    ("Chưa hoàn 35.000đ; đã hoàn 20.000đ.", True),
+    ("Phí ship gốc 20.000đ; LogiX đã hoàn 35.000đ.", False),
+    ("LogiX đã refund 35,000 VND; phí ship 20,000 VND.", False),
+    ("Da, phi ship goc 35.000 VND; LogiX da hoan 20.000 VND.", True),
+])
+def test_lab9_refund_assertion_is_separate_from_context_amounts(text, expected):
+    ctx = SimpleNamespace(output={"events": [{"kind": "reply", "payload": {"text": text}}],
+                                  "result": {}, "snapshot": {"refund_vnd": 20000}})
+    assert ReplyAmountConsistent().evaluate(ctx).value is expected

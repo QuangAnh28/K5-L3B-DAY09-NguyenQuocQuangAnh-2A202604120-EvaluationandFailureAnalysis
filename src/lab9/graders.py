@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
+import unicodedata
 from typing import Any
 
 from pydantic_evals.evaluators import Evaluator, EvaluationReason, EvaluatorContext
@@ -84,9 +85,34 @@ class ProposalAmountCorrect(Evaluator[Any, Trial]):
                                 reason=None if actual == expected else f"proposal {actual} != label {expected}")
 
 
+# Deterministic grammar for the public Vietnamese refund replies; not a general
+# natural-language truth evaluator. Keep context prices/caps separate from money
+# explicitly asserted as refunded. No model is called by this code grader.
+_MONEY = re.compile(r"(?<![\w])([0-9]+(?:[., ]\d{3})*)\s*(?:dong|vnd|d|₫)(?![a-z])", re.I)
+_CUE = re.compile(
+    r"(?P<context>\b(?:chua hoan|khong hoan|se hoan|du kien hoan|de nghi hoan|de xuat hoan|"
+    r"phi ship goc|phi ship|phi goc|phi van chuyen|tong phi|gia tri don|gia tri hang|"
+    r"han muc|muc phe duyet|approval|de xuat|so tien ban dau|con lai)\b)"
+    r"|(?P<refund>\b(?:(?:da\s+(?:duoc\s+)?)?(?:hoan(?:\s+(?:lai|tra))?(?:\s+toan bo)?(?:\s+(?:phi|tien)(?:\s+(?:ship|van chuyen))?)?|refund)|"
+    r"thuc hoan|so tien hoan)\b)", re.I)
+
+
+def refund_statements(text: str) -> list[int]:
+    folded = "".join(c for c in unicodedata.normalize("NFKD", text.lower().replace("đ", "d"))
+                     if not unicodedata.combining(c))
+    values = []
+    # Do not split decimal/thousands separators inside numbers.
+    for clause in re.split(r"[;!?\n]|\.(?!\d)", folded):
+        for money in _MONEY.finditer(clause):
+            cues = list(_CUE.finditer(clause[:money.start()]))
+            if cues and cues[-1].lastgroup == "refund":
+                values.append(int(re.sub(r"[., ]", "", money.group(1))))
+    return values
+
+
 @dataclass
 class ReplyAmountConsistent(Evaluator[Any, Trial]):
-    """Compare explicit monetary claims in replies to the ledger, independent of wording.
+    """Compare affirmative refund amounts to the ledger, excluding context prices/caps.
 
     The reference swarm has no reply event: no monetary statement is vacuously
     consistent. This metric does not certify reply completeness or helpfulness.
@@ -99,9 +125,8 @@ class ReplyAmountConsistent(Evaluator[Any, Trial]):
             if isinstance(ctx.output["result"].get(key), str):
                 texts.append(ctx.output["result"][key])
         amounts = []
-        pattern = r"(?<![\w])([0-9]+(?:[., ]\d{3})*)(?:\s*)(?:đồng|VND|VNĐ|đ|₫)(?![a-zA-Z])"
         for text in texts:
-            amounts.extend(int(re.sub(r"[., ]", "", m)) for m in re.findall(pattern, text, re.I))
+            amounts.extend(refund_statements(text))
         ledger = ctx.output["snapshot"]["refund_vnd"]
         wrong = [v for v in amounts if v != ledger]
         return EvaluationReason(value=not wrong,

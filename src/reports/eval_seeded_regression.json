@@ -3,6 +3,7 @@
   "shape": "seeded_regression",
   "manifest": {
     "eval_set": "data/eval/eval_set_v1.jsonl",
+    "eval_set_version": "v1",
     "eval_set_sha": "eb41ad887fd3",
     "items": 14,
     "seeds": [
@@ -12,7 +13,7 @@
       44,
       55
     ],
-    "metric_spec_version": "1.0",
+    "metric_spec_version": "1.1",
     "llm": "MockLLM",
     "python": "3.13.13"
   },

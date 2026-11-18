@@ -5,10 +5,11 @@ Bổ sung source gốc Day 8, giữ nguyên lab8/, variants và traps; hoàn thi
 ## Kiểm chứng local
 
 ```text
-....................................................                     [100%]
-52 passed, 305 deselected in 5.69s
+........................................................................ [ 78%]
+....................                                                     [100%]
+92 passed, 305 deselected in 4.54s
 .........................................................                [100%]
-57 passed, 300 deselected in 11.40s
+57 passed, 340 deselected in 11.68s
 ```
 
 ## Gate Core — seeded_regression exit 1
@@ -57,6 +58,15 @@ pass_hat_3                 0.9357     0.9357  +0.0000
 pass_at_5                     1.0        1.0  +0.0000
 pass_hat_5                 0.8929     0.8929  +0.0000
 cost_per_success          50.8077    50.8077  +0.0000
+```
+
+## review_regressions
+
+```text
+nonfinite_floor PASS ['integrity']
+version_alias_same_data PASS ['integrity']
+honest_context PASS True
+wrong_refund PASS False
 ```
 
 ## trap_evaluator_errors_as_nan

@@ -210,6 +210,12 @@
     "actual_exit": 1
   },
   {
+    "name": "review_regressions",
+    "command": "python -m lab9.review_checks",
+    "expected_exit": 0,
+    "actual_exit": 0
+  },
+  {
     "name": "tests_lab9",
     "command": "python -m pytest -q -m student -o addopts= -k lab9",
     "expected_exit": 0,

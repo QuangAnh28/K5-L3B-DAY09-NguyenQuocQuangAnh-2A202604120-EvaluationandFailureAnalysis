@@ -28,9 +28,10 @@ Nếu máy chỉ có Python ngoài dải phiên bản, dùng `uv venv --python 3
 - [Eval card](docs/eval_card.md): metric, CI, A/A, mutation, giới hạn.
 - [Failure taxonomy](docs/failure_taxonomy.md): chín FM, bằng chứng event và năm anchor tự đối chiếu.
 - [Trace case](docs/trace_case.md): bước sai đầu tiên C-002@11 và regression test.
-- [Judge audit](docs/judge_audit.md): tone/helper calibration và audit bất đồng.
+- [Judge audit](docs/judge_audit.md): tone/helpful calibration và audit bất đồng.
 - [PRD v1.1](docs/PRD_v1.1.md): cổng merge, trách nhiệm và trạng thái phê duyệt.
 - [Trạng thái bàn giao](docs/submission_status.md).
+- Bằng chứng sửa lỗi review: `src/reports/review_regressions.json` và `review_regressions.txt`, được sinh trong `lab9.verify`.
 
 Có thể kiểm tra lại source Lab 8 byte-for-byte với ZIP đã cấp:
 

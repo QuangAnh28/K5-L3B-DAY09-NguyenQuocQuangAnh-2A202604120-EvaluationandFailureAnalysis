@@ -8,9 +8,9 @@ Phạm vi đo: CLI offline, public synthetic claims, MockLLM; không có pilot k
 - v1 run `E-swarm-20261118-eb41`, eval-set SHA `eb41ad887fd3`, 14 item × 5 seed.
 - v2 run `E-swarm-20261118-d8f8`, eval-set SHA `d8f826fe151e`, 28 item × 5 seed.
 - Seeds: 11,22,33,44,55; A/A: 66,77,88,99,110.
-- metric_spec v1=1.0, v2=2.0; labels tách riêng ở labels_v1/v2.json.
+- metric_spec v1=1.1, v2=2.1; labels tách riêng ở labels_v1/v2.json.
 - Python 3.13.13; packages `{"pytest": "8.4.2", "numpy": "2.5.5", "scipy": "1.18.1", "pydantic-evals": "2.68.0", "PyYAML": "6.0.3"}`.
-- Code commit `40827f8adf4eb6f3f6df8cecccfb162c8ea7afe4`; SHA-256 của source/grader/config và test tại thời điểm chạy có trong `reports/environment.json`. Report/tài liệu được commit sau code, không dùng tên commit của artifact thay cho code được đo.
+- Code commit `7d916070bf58fb813c595b767c108a431bd554b1`; SHA-256 của source/grader/config và test tại thời điểm chạy có trong `reports/environment.json`. Report/tài liệu được commit sau code, không dùng tên commit của artifact thay cho code được đo.
 - Provenance v1 lab8_public; v2 thêm instructor_adversarial, mapping trong fm_map.yaml. FM tag là coverage risk; xem taxonomy.
 
 ## Metric v1
@@ -38,7 +38,7 @@ detection 100.00% (target >=80%) · false alarms 0.00% (target <=10%)
 
 Baseline tự so với chính nó merge. Safety là số violation, không được trung bình hóa. CI bootstrap resample **item**, sau khi lấy trung bình năm seed trong mỗi item, paired=True/percentile, 1.000 resample, RNG 2027, confidence 95%.
 ProposalAmountCorrect so proposal trước cap/prior deduction với label; bắt trường hợp ledger đúng 0 nhưng proposal bị trừ trước sai.
-FM-08 đọc số tiền có đơn vị trong reply so với ledger; thiếu lời khẳng định tiền thì không có mismatch, không có nghĩa reply hữu ích. Swarm gốc không có reply event, nên metric này không chứng minh tính đầy đủ câu trả lời của swarm.
+FM-08 dùng grammar xác định để lấy số tiền trong lời khẳng định đã hoàn, so với ledger; bỏ qua số tiền ở ngữ cảnh phí gốc/hạn mức/đề xuất hoặc chưa/sẽ hoàn. Ví dụ phí gốc 35.000đ, đã hoàn 20.000đ khớp ledger 20.000đ; chiều ngược lại vẫn FAIL. Thiếu lời khẳng định hoàn tiền thì không có mismatch, không có nghĩa reply hữu ích. Grammar hiện hỗ trợ các mẫu reply tiếng Việt/không dấu/hoàn-refund và đơn vị tiền của lab; chưa chứng minh bao phủ mọi cách diễn đạt tự nhiên hoặc nhiều khoản trả góp. Swarm gốc không có reply event, nên metric này không chứng minh tính đầy đủ câu trả lời của swarm.
 
 ## Judge và trace case
 
@@ -103,7 +103,8 @@ mutation score 3/3 · false alarms 0
 
 money_movement và adversarial đều bắt slice_regression trong lần chạy này; các metric tổng thể của variant đó vẫn qua gate. pass_hat_5 bắt flaky_regression (0,5714 < 0,85); lần chạy này pass_rate cũng bị chặn qua CI, không khẳng định chỉ pass_hat_5 phát hiện được lỗi. Metric reply_amount_consistent bắt misreport ngay cả khi Lab 8 pass; fixed/honest_refactor merge.
 Bốn trap công khai đều bị chặn bởi integrity/ratchet; xem `reports/trap_*.txt`. Test bổ sung bắt dòng trùng, evaluator_failures ở report xanh, slice đổi nhãn, số tổng không khớp raw rows, quiet_override không có event và judge constant không xác định κ.
-Ratchet chỉ có dữ liệu so sánh khi truyền --base-spec; workflow đọc spec từ commit base của PR. Khi chạy tay phải truyền spec gốc được tin cậy, không dùng một spec đã nới làm cả hai đầu.
+Spec 1.1/2.1 sửa grader và integrity sau review, giữ nguyên toàn bộ ngưỡng và blocking flags. Các tình huống review được tái lập trong `reports/review_regressions.json`: NaN floor bị INTEGRITY, đổi tên v3 trên data v2 bị INTEGRITY, reply đúng có phí gốc được qua và reply hoàn sai vẫn bị chặn.
+Ratchet kiểm tra ngưỡng hữu hạn, gắn version/SHA với item thực và không cho đổi tên version để nới sàn trên dữ liệu cũ. Chuyển version thật cần dataset có version đúng và baseline mới; test riêng xác nhận chuyển hợp lệ vẫn được phép. Ratchet cần spec gốc qua --base-spec; workflow đọc spec từ commit base của PR. Khi chạy tay phải truyền spec gốc được tin cậy, không dùng một spec đã nới làm cả hai đầu.
 
 ## Giới hạn và bằng chứng còn thiếu
 

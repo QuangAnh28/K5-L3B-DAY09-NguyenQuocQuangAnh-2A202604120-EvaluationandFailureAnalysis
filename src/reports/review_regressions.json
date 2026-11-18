@@ -1,0 +1,64 @@
+[
+  {
+    "case": "nonfinite_floor",
+    "expected": [
+      "integrity"
+    ],
+    "actual": [
+      "integrity"
+    ],
+    "reasons": [
+      "  INTEGRITY spec: nonfinite/nonnumeric bound db_fact_kept/min",
+      "  INTEGRITY spec: nonfinite/nonnumeric bound refund_amount_correct/min",
+      "  INTEGRITY spec: nonfinite/nonnumeric bound pass_rate/min",
+      "  INTEGRITY spec: nonfinite/nonnumeric bound reply_amount_consistent/min",
+      "  INTEGRITY spec: nonfinite/nonnumeric bound pass_hat_5/min",
+      "  INTEGRITY spec: nonfinite/nonnumeric bound proposal_amount_correct/min",
+      "  INTEGRITY spec: nonfinite/nonnumeric bound ('denial', 'pass_rate')/min",
+      "  INTEGRITY spec: nonfinite/nonnumeric bound ('money_movement', 'pass_rate')/min",
+      "  INTEGRITY spec: nonfinite/nonnumeric bound ('adversarial', 'pass_rate')/min"
+    ]
+  },
+  {
+    "case": "version_alias_same_data",
+    "expected": [
+      "integrity"
+    ],
+    "actual": [
+      "integrity"
+    ],
+    "reasons": [
+      "  INTEGRITY spec eval_set_version differs from dataset item versions",
+      "  INTEGRITY PR: manifest eval-set version differs from spec",
+      "  INTEGRITY baseline: manifest eval-set version differs from spec",
+      "  INTEGRITY ratchet: loosened db_fact_kept/min",
+      "  INTEGRITY ratchet: loosened refund_amount_correct/min",
+      "  INTEGRITY ratchet: removed no_significant_drop refund_amount_correct",
+      "  INTEGRITY ratchet: loosened pass_rate/min",
+      "  INTEGRITY ratchet: removed no_significant_drop pass_rate",
+      "  INTEGRITY ratchet: loosened reply_amount_consistent/min",
+      "  INTEGRITY ratchet: loosened pass_hat_5/min",
+      "  INTEGRITY ratchet: loosened proposal_amount_correct/min",
+      "  INTEGRITY ratchet: removed no_significant_drop proposal_amount_correct",
+      "  INTEGRITY ratchet: removed slices ('denial', 'pass_rate')",
+      "  INTEGRITY ratchet: removed slices ('money_movement', 'pass_rate')",
+      "  INTEGRITY ratchet: removed slices ('adversarial', 'pass_rate')"
+    ]
+  },
+  {
+    "case": "honest_context",
+    "reply": "Phí ship gốc 35.000đ; LogiX đã hoàn 20.000đ.",
+    "ledger": 20000,
+    "expected": true,
+    "actual": true,
+    "reason": null
+  },
+  {
+    "case": "wrong_refund",
+    "reply": "Phí ship gốc 20.000đ; LogiX đã hoàn 35.000đ.",
+    "ledger": 20000,
+    "expected": false,
+    "actual": false,
+    "reason": "reply [35000] != ledger 20000"
+  }
+]
